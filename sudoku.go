@@ -3,11 +3,29 @@ package sudoku
 import (
 	"bytes"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"sync"
+	"time"
 )
 
+var logger = log.New(os.Stdout, "", 0)
+
 type Grid [][]int
+
+//isSolved tells if this sudoku has been solved or not
+//works for both 9x9 sudokus and 21*21 samurai sudokus
+func (g Grid) isSolved() bool {
+	for _, row := range g {
+		for _, num := range row {
+			if num == 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 type SamuraiSudoku struct {
 	mu   sync.Mutex
@@ -48,10 +66,10 @@ func (p Position) String() string {
 	return "unknown"
 }
 
-func (m Grid) String() string {
+func (g Grid) String() string {
 	var buf bytes.Buffer
 	var char string
-	for _, row := range m {
+	for _, row := range g {
 		for _, num := range row {
 			if num == -1 {
 				char = " "
@@ -126,10 +144,46 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 	// iterate over the map until all subsudokus are solved
 	for _, subSudoku := range subSudokus {
 		solution := SolveSudoku(subSudoku.sudoku, subSudoku.position, samurai)
-		fmt.Printf("%s\n%v\n", subSudoku.position, solution)
+		logger.Printf("%s\n%v\n", subSudoku.position, solution)
 	}
 
 	return samurai.Grid()
+}
+
+//ConcurrentSolveSamuraiSudoku solves 21*21 samurai sudoku concurrently
+func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
+
+	// get all subsudokus
+	subSudokus := []struct {
+		position Position
+		sudoku   Grid
+	}{
+		{TopLeft, samurai.GetSubSudoku(TopLeft)},
+		{TopRight, samurai.GetSubSudoku(TopRight)},
+		{Centre, samurai.GetSubSudoku(Centre)},
+		{BottomLeft, samurai.GetSubSudoku(BottomLeft)},
+		{BottomRight, samurai.GetSubSudoku(BottomRight)},
+	}
+
+	wg := new(sync.WaitGroup)
+
+	// iterate over the map until all subsudokus are solved
+	solvingLoop(samurai, subSudokus, wg)
+
+	return samurai.Grid()
+}
+
+func solvingLoop(samurai *SamuraiSudoku, subSudokus []struct {
+	position Position
+	sudoku   Grid
+}, wg *sync.WaitGroup) {
+	for _, subSudoku := range subSudokus {
+		// increment WaitGroup counter
+		subSudoku := subSudoku
+		wg.Add(1)
+		go concurrentSolveSudoku(subSudoku.sudoku, subSudoku.position, samurai, wg)
+	}
+	wg.Wait()
 }
 
 //possible checks if index y,x in grid position can be filled with n in all subsudokus it's in
@@ -205,6 +259,27 @@ func possibleSudoku(sudoku Grid, y int, x int, n int) bool {
 		}
 	}
 	return true
+}
+
+//concurrentSolveSudoku solves 9x9 subsudoku in specified position within samuraiSudoku, concurrently
+func concurrentSolveSudoku(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku, wg *sync.WaitGroup) Grid {
+	// TODO: fix some sudokus not solving.
+	for !sudoku.isSolved() {
+		time.Sleep(time.Duration(time.Duration.Milliseconds(20000)))
+		wg.Add(1)
+		logger.Printf("%s attempting solve on %v\n", position, sudoku)
+		samuraiSudoku.mu.Lock()
+		//logger.Printf("%s routine acquired lock\n", position)
+		backtrack(sudoku, position, samuraiSudoku)
+		samuraiSudoku.mu.Unlock()
+		//logger.Printf("%s routine released lock\n", position)
+		wg.Done()
+	}
+
+	logger.Printf("%s\n%v\n", position, sudoku)
+	wg.Done()
+
+	return sudoku
 }
 
 //SolveSudoku solves 9x9 subsudoku in position within samuraiSudoku
