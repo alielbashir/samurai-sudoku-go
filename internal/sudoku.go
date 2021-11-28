@@ -110,19 +110,18 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Matrix {
 
 func SolveSamuraiSudoku(samurai *SamuraiSudoku) Matrix {
 	// get all subsudokus
-	subSudokus := []Matrix{
-		samurai.GetSubSudoku(TopLeft),
-		samurai.GetSubSudoku(TopRight),
-		samurai.GetSubSudoku(Centre),
-		samurai.GetSubSudoku(BottomLeft),
-		samurai.GetSubSudoku(BottomRight),
+	subSudokus := map[Position]Matrix{
+		TopLeft:     samurai.GetSubSudoku(TopLeft),
+		TopRight:    samurai.GetSubSudoku(TopRight),
+		Centre:      samurai.GetSubSudoku(Centre),
+		BottomLeft:  samurai.GetSubSudoku(BottomLeft),
+		BottomRight: samurai.GetSubSudoku(BottomRight),
 	}
 
 	// iterate over the slice until everything is solved
-	solutions := make([]Matrix, 5)
-	// TODO: check possible for all shared sudokus
-	for _, sudoku := range subSudokus {
-		solutions = append(solutions, SolveSudoku(sudoku))
+	solutions := make([]Matrix, 5, 5)
+	for position, sudoku := range subSudokus {
+		solutions = append(solutions, SolveSudoku(sudoku, position, samurai))
 	}
 
 	for _, solution := range solutions {
@@ -131,7 +130,56 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Matrix {
 	return samurai.Grid()
 }
 
-func possible(sudoku Matrix, y int, x int, n int) bool {
+func possible(sudoku Matrix, y int, x int, n int, position Position, samuraiSudoku *SamuraiSudoku) bool {
+	var sharedSudoku Matrix
+	var yShared, xShared int
+	switch position {
+	case TopLeft:
+		if 6 <= y && y < 9 && 6 <= x && x < 9 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(Centre)
+			yShared, xShared = y-6, x-6
+		}
+	case TopRight:
+		if 6 <= y && y < 9 && 0 <= x && x < 3 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(Centre)
+			yShared, xShared = y-6, x+6
+		}
+
+	case Centre:
+		if 0 <= y && y < 3 && 0 <= x && x < 3 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(TopLeft)
+			yShared, xShared = y+6, x+6
+		} else if 0 <= y && y < 3 && 6 <= x && x < 9 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(TopRight)
+			yShared, xShared = y+6, x-6
+		} else if 6 <= y && y < 9 && 0 <= x && x < 3 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(BottomLeft)
+			yShared, xShared = y-6, x+6
+		} else if 6 <= y && y < 9 && 6 <= x && x < 9 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(BottomRight)
+			yShared, xShared = y-6, x-6
+		}
+
+	case BottomLeft:
+		if 0 <= y && y < 3 && 6 <= x && x < 9 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(Centre)
+			yShared, xShared = y+6, x-6
+		}
+	case BottomRight:
+		if 0 <= y && y < 3 && 0 <= x && x < 3 {
+			sharedSudoku = samuraiSudoku.GetSubSudoku(Centre)
+			yShared, xShared = y+6, x+6
+		}
+
+	}
+	if len(sharedSudoku) == 0 {
+		return possibleSudoku(sudoku, y, x, n)
+	} else {
+		return possibleSudoku(sudoku, y, x, n) && possibleSudoku(sharedSudoku, yShared, xShared, n)
+	}
+}
+
+func possibleSudoku(sudoku Matrix, y int, x int, n int) bool {
 	for i := 0; i < 9; i++ {
 		if sudoku[y][i] == n {
 			return false
@@ -155,20 +203,20 @@ func possible(sudoku Matrix, y int, x int, n int) bool {
 	return true
 }
 
-func SolveSudoku(sudoku Matrix) Matrix {
-	backtrack(sudoku)
+func SolveSudoku(sudoku Matrix, position Position, samuraiSudoku *SamuraiSudoku) Matrix {
+	backtrack(sudoku, position, samuraiSudoku)
 	return sudoku
 }
 
-func backtrack(sudoku Matrix) bool {
+func backtrack(sudoku Matrix, position Position, samuraiSudoku *SamuraiSudoku) bool {
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
-					if possible(sudoku, y, x, n) {
+					if possible(sudoku, y, x, n, position, samuraiSudoku) {
 						sudoku[y][x] = n
-						if backtrack(sudoku) {
+						if backtrack(sudoku, position, samuraiSudoku) {
 							return true
 						}
 						sudoku[y][x] = 0

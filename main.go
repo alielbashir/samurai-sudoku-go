@@ -37,6 +37,6 @@ func main() {
 	sudoku := samuraiSudoku.GetSubSudoku(BottomLeft)
 
 	fmt.Println(sudoku)
-	SolveSudoku(sudoku)
+	//SolveSudoku(sudoku)
 	fmt.Println(sudoku)
 }
