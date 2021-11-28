@@ -7,18 +7,18 @@ import (
 	"sync"
 )
 
-type Matrix [][]int
+type Grid [][]int
 
 type SamuraiSudoku struct {
 	mu   sync.Mutex
-	grid Matrix
+	grid Grid
 }
 
-func (s *SamuraiSudoku) Grid() Matrix {
+func (s *SamuraiSudoku) Grid() Grid {
 	return s.grid
 }
 
-func (s *SamuraiSudoku) SetGrid(grid Matrix) {
+func (s *SamuraiSudoku) SetGrid(grid Grid) {
 	s.grid = grid
 }
 
@@ -48,7 +48,7 @@ func (p Position) String() string {
 	return "unknown"
 }
 
-func (m Matrix) String() string {
+func (m Grid) String() string {
 	var buf bytes.Buffer
 	var char string
 	for _, row := range m {
@@ -72,10 +72,10 @@ func (m Matrix) String() string {
 }
 
 //GetSubSudoku returns sub-sudoku for given position, assuming 21*21 samurai sudoku grid
-func (s *SamuraiSudoku) GetSubSudoku(position Position) Matrix {
+func (s *SamuraiSudoku) GetSubSudoku(position Position) Grid {
 	var grid = s.grid
-	subSudoku := make(Matrix, 9)
-	var tmp Matrix
+	subSudoku := make(Grid, 9)
+	var tmp Grid
 	switch position {
 	case TopLeft:
 		tmp = grid[0:9]
@@ -108,9 +108,11 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Matrix {
 	return subSudoku
 }
 
-func SolveSamuraiSudoku(samurai *SamuraiSudoku) Matrix {
+//SolveSamuraiSudoku solves 21*21 samurai sudoku
+func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
+
 	// get all subsudokus
-	subSudokus := map[Position]Matrix{
+	subSudokus := map[Position]Grid{
 		TopLeft:     samurai.GetSubSudoku(TopLeft),
 		TopRight:    samurai.GetSubSudoku(TopRight),
 		Centre:      samurai.GetSubSudoku(Centre),
@@ -130,8 +132,9 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Matrix {
 	return samurai.Grid()
 }
 
-func possible(sudoku Matrix, y int, x int, n int, position Position, samuraiSudoku *SamuraiSudoku) bool {
-	var sharedSudoku Matrix
+//possible checks if index y,x in grid position can be filled with n in all subsudokus it's in
+func possible(sudoku Grid, y int, x int, n int, position Position, samuraiSudoku *SamuraiSudoku) bool {
+	var sharedSudoku Grid
 	var yShared, xShared int
 	switch position {
 	case TopLeft:
@@ -179,7 +182,8 @@ func possible(sudoku Matrix, y int, x int, n int, position Position, samuraiSudo
 	}
 }
 
-func possibleSudoku(sudoku Matrix, y int, x int, n int) bool {
+//possibleSudoku checks if sudoku can be filled in position y,x with n
+func possibleSudoku(sudoku Grid, y int, x int, n int) bool {
 	for i := 0; i < 9; i++ {
 		if sudoku[y][i] == n {
 			return false
@@ -203,12 +207,14 @@ func possibleSudoku(sudoku Matrix, y int, x int, n int) bool {
 	return true
 }
 
-func SolveSudoku(sudoku Matrix, position Position, samuraiSudoku *SamuraiSudoku) Matrix {
+//SolveSudoku solves 9x9 subsudoku in position within samuraiSudoku
+func SolveSudoku(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) Grid {
 	backtrack(sudoku, position, samuraiSudoku)
 	return sudoku
 }
 
-func backtrack(sudoku Matrix, position Position, samuraiSudoku *SamuraiSudoku) bool {
+//backtrack keeps attempting values recursively until 9x9 sudoku is solved completely
+func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) bool {
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty

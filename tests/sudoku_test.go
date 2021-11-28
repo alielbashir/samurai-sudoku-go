@@ -11,7 +11,7 @@ import (
 func TestGetSubSudoku(t *testing.T) {
 
 	// Setup
-	samuraiGrid := Matrix{
+	samuraiGrid := Grid{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -40,10 +40,10 @@ func TestGetSubSudoku(t *testing.T) {
 
 	testCases := []struct {
 		position Position
-		want     Matrix
+		want     Grid
 	}{
 		{
-			TopLeft, Matrix{
+			TopLeft, Grid{
 				{0, 0, 5, 7, 0, 0, 0, 2, 0},
 				{4, 9, 0, 0, 6, 0, 0, 1, 0},
 				{0, 0, 7, 0, 0, 4, 9, 0, 6},
@@ -56,7 +56,7 @@ func TestGetSubSudoku(t *testing.T) {
 			},
 		},
 		{
-			TopRight, Matrix{
+			TopRight, Grid{
 				{0, 0, 9, 6, 0, 0, 0, 2, 0},
 				{1, 4, 0, 0, 5, 0, 0, 3, 0},
 				{0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -69,7 +69,7 @@ func TestGetSubSudoku(t *testing.T) {
 			},
 		},
 		{
-			Centre, Matrix{
+			Centre, Grid{
 				{7, 0, 0, 0, 0, 0, 6, 0, 5},
 				{0, 8, 5, 0, 0, 0, 0, 1, 0},
 				{6, 0, 0, 0, 1, 0, 0, 2, 0},
@@ -82,7 +82,7 @@ func TestGetSubSudoku(t *testing.T) {
 			},
 		},
 		{
-			BottomLeft, Matrix{
+			BottomLeft, Grid{
 				{0, 0, 8, 5, 0, 0, 0, 2, 0},
 				{6, 2, 0, 0, 4, 0, 0, 5, 0},
 				{0, 0, 7, 0, 0, 8, 9, 0, 3},
@@ -95,7 +95,7 @@ func TestGetSubSudoku(t *testing.T) {
 			},
 		},
 		{
-			BottomRight, Matrix{
+			BottomRight, Grid{
 				{0, 0, 8, 9, 0, 0, 0, 6, 0},
 				{9, 6, 0, 0, 2, 0, 0, 5, 0},
 				{0, 0, 2, 0, 0, 8, 1, 0, 9},
@@ -122,7 +122,7 @@ func TestGetSubSudoku(t *testing.T) {
 //TestSingleThreadedSamuraiSudokuSolver
 func TestSingleThreadedSamuraiSudokuSolver(t *testing.T) {
 
-	var SamuraiGrid = Matrix{
+	var SamuraiGrid = Grid{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -149,7 +149,7 @@ func TestSingleThreadedSamuraiSudokuSolver(t *testing.T) {
 
 	samuraiSudoku.SetGrid(SamuraiGrid)
 
-	want := Matrix{
+	want := Grid{
 		{1, 6, 5, 7, 9, 8, 4, 2, 3, -1, -1, -1, 7, 3, 9, 6, 4, 8, 1, 2, 5},
 		{4, 9, 2, 5, 6, 3, 8, 1, 7, -1, -1, -1, 1, 4, 8, 7, 5, 2, 6, 3, 9},
 		{3, 8, 7, 2, 1, 4, 9, 5, 6, -1, -1, -1, 5, 6, 2, 3, 9, 1, 7, 4, 8},
