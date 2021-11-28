@@ -1,9 +1,8 @@
-package tests
+package sudoku
 
 import (
 	"fmt"
 	"reflect"
-	. "samurai-sudoku/internal"
 	"testing"
 )
 

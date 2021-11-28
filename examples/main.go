@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	. "samurai-sudoku/internal"
+	. "github.com/alielbashir/samurai-sudoku-go"
 )
 
 func main() {
