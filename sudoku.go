@@ -112,18 +112,21 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Grid {
 func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 
 	// get all subsudokus
-	subSudokus := map[Position]Grid{
-		TopLeft:     samurai.GetSubSudoku(TopLeft),
-		TopRight:    samurai.GetSubSudoku(TopRight),
-		Centre:      samurai.GetSubSudoku(Centre),
-		BottomLeft:  samurai.GetSubSudoku(BottomLeft),
-		BottomRight: samurai.GetSubSudoku(BottomRight),
+	subSudokus := []struct {
+		position Position
+		sudoku   Grid
+	}{
+		{TopLeft, samurai.GetSubSudoku(TopLeft)},
+		{TopRight, samurai.GetSubSudoku(TopRight)},
+		{Centre, samurai.GetSubSudoku(Centre)},
+		{BottomLeft, samurai.GetSubSudoku(BottomLeft)},
+		{BottomRight, samurai.GetSubSudoku(BottomRight)},
 	}
 
 	// iterate over the map until all subsudokus are solved
-	for position, sudoku := range subSudokus {
-		solution := SolveSudoku(sudoku, position, samurai)
-		fmt.Printf("%s\n%v\n", position, solution)
+	for _, subSudoku := range subSudokus {
+		solution := SolveSudoku(subSudoku.sudoku, subSudoku.position, samurai)
+		fmt.Printf("%s\n%v\n", subSudoku.position, solution)
 	}
 
 	return samurai.Grid()
