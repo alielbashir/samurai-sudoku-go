@@ -120,15 +120,12 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 		BottomRight: samurai.GetSubSudoku(BottomRight),
 	}
 
-	// iterate over the slice until everything is solved
-	solutions := make([]Matrix, 5, 5)
+	// iterate over the map until all subsudokus are solved
 	for position, sudoku := range subSudokus {
-		solutions = append(solutions, SolveSudoku(sudoku, position, samurai))
+		solution := SolveSudoku(sudoku, position, samurai)
+		fmt.Printf("%s\n%v\n", position, solution)
 	}
 
-	for _, solution := range solutions {
-		fmt.Println(solution)
-	}
 	return samurai.Grid()
 }
 
