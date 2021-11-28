@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"sync"
@@ -28,8 +29,17 @@ func (g Grid) isSolved() bool {
 }
 
 type SamuraiSudoku struct {
-	mu   sync.Mutex
-	grid Grid
+	mu          sync.Mutex
+	grid        Grid
+	initialGrid Grid
+}
+
+func (s *SamuraiSudoku) ResetGrid() {
+	for i, row := range s.initialGrid {
+		for j, num := range row {
+			s.grid[i][j] = num
+		}
+	}
 }
 
 func (s *SamuraiSudoku) Grid() Grid {
@@ -37,6 +47,13 @@ func (s *SamuraiSudoku) Grid() Grid {
 }
 
 func (s *SamuraiSudoku) SetGrid(grid Grid) {
+	if s.initialGrid == nil {
+		s.initialGrid = make(Grid, len(grid))
+		for i := range grid {
+			s.initialGrid[i] = make([]int, len(grid[i]))
+			copy(s.initialGrid[i], grid[i])
+		}
+	}
 	s.grid = grid
 }
 
@@ -152,38 +169,65 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 
 //ConcurrentSolveSamuraiSudoku solves 21*21 samurai sudoku concurrently
 func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
-
+	rand.Seed(time.Now().UnixNano())
 	// get all subsudokus
-	subSudokus := []struct {
+	getSubSudokus := func() []struct {
 		position Position
 		sudoku   Grid
-	}{
-		{TopLeft, samurai.GetSubSudoku(TopLeft)},
-		{TopRight, samurai.GetSubSudoku(TopRight)},
-		{Centre, samurai.GetSubSudoku(Centre)},
-		{BottomLeft, samurai.GetSubSudoku(BottomLeft)},
-		{BottomRight, samurai.GetSubSudoku(BottomRight)},
+	} {
+		subSudokus := []struct {
+			position Position
+			sudoku   Grid
+		}{
+			{TopLeft, samurai.GetSubSudoku(TopLeft)},
+			{TopRight, samurai.GetSubSudoku(TopRight)},
+			{Centre, samurai.GetSubSudoku(Centre)},
+			{BottomLeft, samurai.GetSubSudoku(BottomLeft)},
+			{BottomRight, samurai.GetSubSudoku(BottomRight)},
+		}
+		rand.Shuffle(len(subSudokus), func(i, j int) {
+			subSudokus[i], subSudokus[j] = subSudokus[j], subSudokus[i]
+		})
+		return subSudokus
 	}
 
 	wg := new(sync.WaitGroup)
 
 	// iterate over the map until all subsudokus are solved
-	solvingLoop(samurai, subSudokus, wg)
+	for !samurai.Grid().isSolved() {
+		samurai.ResetGrid()
+		subSudokus := getSubSudokus()
+		// reset samurai grid
+		solvingLoop(samurai, subSudokus, wg)
+	}
 
 	return samurai.Grid()
 }
+
+var SolvingAttempts = 0
 
 func solvingLoop(samurai *SamuraiSudoku, subSudokus []struct {
 	position Position
 	sudoku   Grid
 }, wg *sync.WaitGroup) {
+	wg.Add(len(subSudokus))
 	for _, subSudoku := range subSudokus {
 		// increment WaitGroup counter
-		subSudoku := subSudoku
-		wg.Add(1)
 		go concurrentSolveSudoku(subSudoku.sudoku, subSudoku.position, samurai, wg)
 	}
 	wg.Wait()
+	var order bytes.Buffer
+	// populate order buffer for debugging purposes
+	for _, sudokus := range subSudokus {
+		_, err := fmt.Fprintf(&order, "%d, ", sudokus.position)
+		if err != nil {
+			return
+		}
+	}
+	logger.Printf("Attempt %d:\n"+
+		"order = %v\n"+
+		"%s\n", SolvingAttempts, order.String(), samurai.Grid())
+	SolvingAttempts++
 }
 
 //possible checks if index y,x in grid position can be filled with n in all subsudokus it's in
@@ -264,19 +308,19 @@ func possibleSudoku(sudoku Grid, y int, x int, n int) bool {
 //concurrentSolveSudoku solves 9x9 subsudoku in specified position within samuraiSudoku, concurrently
 func concurrentSolveSudoku(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku, wg *sync.WaitGroup) Grid {
 	// TODO: fix some sudokus not solving.
-	for !sudoku.isSolved() {
-		time.Sleep(time.Duration(time.Duration.Milliseconds(20000)))
-		wg.Add(1)
-		logger.Printf("%s attempting solve on %v\n", position, sudoku)
-		samuraiSudoku.mu.Lock()
-		//logger.Printf("%s routine acquired lock\n", position)
-		backtrack(sudoku, position, samuraiSudoku)
-		samuraiSudoku.mu.Unlock()
-		//logger.Printf("%s routine released lock\n", position)
+	if sudoku.isSolved() {
 		wg.Done()
+		return sudoku
 	}
+	logger.Printf("%s attempting solve on \n%v\n", position, sudoku)
 
-	logger.Printf("%s\n%v\n", position, sudoku)
+	samuraiSudoku.mu.Lock()
+	//logger.Printf("%s routine acquired lock\n", position)
+	backtrack(sudoku, position, samuraiSudoku)
+	samuraiSudoku.mu.Unlock()
+	//logger.Printf("%s routine released lock\n", position)
+
+	//logger.Printf("%s\n%v\n", position, sudoku)
 	wg.Done()
 
 	return sudoku
