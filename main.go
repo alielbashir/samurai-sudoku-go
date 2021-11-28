@@ -1,9 +1,12 @@
 package main
 
-import . "samurai-sudoku/internal"
+import (
+	"fmt"
+	. "samurai-sudoku/internal"
+)
 
 func main() {
-	var sudoku = [][]int{
+	var sudoku = Matrix{
 		{5, 3, 0, 0, 7, 0, 0, 0, 0},
 		{6, 0, 0, 1, 9, 5, 0, 0, 0},
 		{0, 9, 8, 0, 0, 0, 0, 6, 0},
@@ -14,5 +17,9 @@ func main() {
 		{0, 0, 0, 4, 1, 9, 0, 0, 5},
 		{0, 0, 0, 0, 8, 0, 0, 0, 0},
 	}
+
+	fmt.Println(sudoku)
 	SolveSudoku(sudoku)
+	fmt.Println(sudoku)
+
 }

@@ -8,7 +8,7 @@ import (
 
 // TestSolveSudoku
 func TestSolveSudoku(t *testing.T) {
-	var sudoku = [][]int{
+	var sudoku = Matrix{
 		{5, 3, 0, 0, 7, 0, 0, 0, 0},
 		{6, 0, 0, 1, 9, 5, 0, 0, 0},
 		{0, 9, 8, 0, 0, 0, 0, 6, 0},
@@ -20,7 +20,7 @@ func TestSolveSudoku(t *testing.T) {
 		{0, 0, 0, 0, 8, 0, 0, 0, 0},
 	}
 
-	var solvedSudoku = [][]int{
+	var solvedSudoku = Matrix{
 		{5, 3, 4, 6, 7, 8, 1, 9, 2},
 		{6, 7, 2, 1, 9, 5, 3, 4, 8},
 		{1, 9, 8, 3, 4, 2, 5, 6, 7},
@@ -33,14 +33,14 @@ func TestSolveSudoku(t *testing.T) {
 	}
 	SolveSudoku(sudoku)
 	if !reflect.DeepEqual(sudoku, solvedSudoku) {
-		t.Fatalf("want\n%v\ngot\n%v ", SudokuString(solvedSudoku), SudokuString(sudoku))
+		t.Fatalf("want\n%v\ngot\n%v ", solvedSudoku, sudoku)
 	}
 }
 
 //TestGetSubSudokuTopLeft
 func TestGetSubSudokuTopLeft(t *testing.T) {
 
-	var SamuraiGrid = [][]int{
+	var SamuraiGrid = Matrix{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -67,7 +67,7 @@ func TestGetSubSudokuTopLeft(t *testing.T) {
 
 	samuraiSudoku.SetGrid(SamuraiGrid)
 
-	want := [][]int{
+	want := Matrix{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6},
@@ -88,7 +88,7 @@ func TestGetSubSudokuTopLeft(t *testing.T) {
 
 //TestGetSubSudokuTopRight
 func TestGetSubSudokuTopRight(t *testing.T) {
-	var SamuraiGrid = [][]int{
+	var SamuraiGrid = Matrix{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -115,7 +115,7 @@ func TestGetSubSudokuTopRight(t *testing.T) {
 
 	samuraiSudoku.SetGrid(SamuraiGrid)
 
-	want := [][]int{
+	want := Matrix{
 		{0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -136,7 +136,7 @@ func TestGetSubSudokuTopRight(t *testing.T) {
 
 //TestGetSubSudokuCentre
 func TestGetSubSudokuCentre(t *testing.T) {
-	var SamuraiGrid = [][]int{
+	var SamuraiGrid = Matrix{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -163,7 +163,7 @@ func TestGetSubSudokuCentre(t *testing.T) {
 
 	samuraiSudoku.SetGrid(SamuraiGrid)
 
-	want := [][]int{
+	want := Matrix{
 		{7, 0, 0, 0, 0, 0, 6, 0, 5},
 		{0, 8, 5, 0, 0, 0, 0, 1, 0},
 		{6, 0, 0, 0, 1, 0, 0, 2, 0},
@@ -184,7 +184,7 @@ func TestGetSubSudokuCentre(t *testing.T) {
 
 //TestGetSubSudokuBottomLeft
 func TestGetSubSudokuBottomLeft(t *testing.T) {
-	var SamuraiGrid = [][]int{
+	var SamuraiGrid = Matrix{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -211,7 +211,7 @@ func TestGetSubSudokuBottomLeft(t *testing.T) {
 
 	samuraiSudoku.SetGrid(SamuraiGrid)
 
-	want := [][]int{
+	want := Matrix{
 		{0, 0, 8, 5, 0, 0, 0, 2, 0},
 		{6, 2, 0, 0, 4, 0, 0, 5, 0},
 		{0, 0, 7, 0, 0, 8, 9, 0, 3},
@@ -232,7 +232,7 @@ func TestGetSubSudokuBottomLeft(t *testing.T) {
 
 //TestGetSubSudokuBottomRight
 func TestGetSubSudokuBottomRight(t *testing.T) {
-	var SamuraiGrid = [][]int{
+	var SamuraiGrid = Matrix{
 		{0, 0, 5, 7, 0, 0, 0, 2, 0, -1, -1, -1, 0, 0, 9, 6, 0, 0, 0, 2, 0},
 		{4, 9, 0, 0, 6, 0, 0, 1, 0, -1, -1, -1, 1, 4, 0, 0, 5, 0, 0, 3, 0},
 		{0, 0, 7, 0, 0, 4, 9, 0, 6, -1, -1, -1, 0, 0, 2, 0, 0, 1, 7, 0, 8},
@@ -259,7 +259,7 @@ func TestGetSubSudokuBottomRight(t *testing.T) {
 
 	samuraiSudoku.SetGrid(SamuraiGrid)
 
-	want := [][]int{
+	want := Matrix{
 		{0, 0, 8, 9, 0, 0, 0, 6, 0},
 		{9, 6, 0, 0, 2, 0, 0, 5, 0},
 		{0, 0, 2, 0, 0, 8, 1, 0, 9},

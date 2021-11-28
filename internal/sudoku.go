@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"sync"
 )
 
@@ -47,7 +48,7 @@ func (p Position) String() string {
 	return "unknown"
 }
 
-func (m Matrix) PrintSudoku() string {
+func (m Matrix) String() string {
 	var buf bytes.Buffer
 	var char string
 	for _, row := range m {
@@ -55,7 +56,7 @@ func (m Matrix) PrintSudoku() string {
 			if num == -1 {
 				char = ""
 			} else {
-				char = string(rune(num))
+				char = strconv.Itoa(num)
 			}
 			_, err := fmt.Fprint(&buf, char, " ")
 			if err != nil {
@@ -70,10 +71,10 @@ func (m Matrix) PrintSudoku() string {
 	return buf.String()
 }
 
-// Returns sub-sudoku for given position, assuming 21*21 samurai sudoku grid
-func (s *SamuraiSudoku) GetSubSudoku(position Position) [][]int {
+//GetSubSudoku returns sub-sudoku for given position, assuming 21*21 samurai sudoku grid
+func (s *SamuraiSudoku) GetSubSudoku(position Position) Matrix {
 	var grid = s.grid
-	var subSudoku [][]int
+	var subSudoku Matrix
 	switch position {
 	case TopLeft:
 		subSudoku = grid[0:9]
@@ -106,24 +107,7 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) [][]int {
 	return subSudoku
 }
 
-func SudokuString(sudoku [][]int) string {
-	var buf bytes.Buffer
-	for _, row := range sudoku {
-		for _, num := range row {
-			_, err := fmt.Fprint(&buf, num, " ")
-			if err != nil {
-				return ""
-			}
-		}
-		_, err := fmt.Fprint(&buf, "\n")
-		if err != nil {
-			return ""
-		}
-	}
-	return buf.String()
-}
-
-func possible(sudoku [][]int, y int, x int, n int) bool {
+func possible(sudoku Matrix, y int, x int, n int) bool {
 	for i := 0; i < 9; i++ {
 		if sudoku[y][i] == n {
 			return false
@@ -147,12 +131,12 @@ func possible(sudoku [][]int, y int, x int, n int) bool {
 	return true
 }
 
-func SolveSudoku(sudoku [][]int) [][]int {
+func SolveSudoku(sudoku Matrix) Matrix {
 	backtrack(sudoku)
 	return sudoku
 }
 
-func backtrack(sudoku [][]int) bool {
+func backtrack(sudoku Matrix) bool {
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty
@@ -170,7 +154,5 @@ func backtrack(sudoku [][]int) bool {
 			}
 		}
 	}
-	//fmt.Println("Solved!")
-	//PrintSudoku(sudoku)
 	return true
 }
