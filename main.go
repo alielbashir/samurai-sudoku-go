@@ -2,19 +2,7 @@ package main
 
 import "fmt"
 
-var sudoku = [][]int{
-	{5, 3, 0, 0, 7, 0, 0, 0, 0},
-	{6, 0, 0, 1, 9, 5, 0, 0, 0},
-	{0, 9, 8, 0, 0, 0, 0, 6, 0},
-	{8, 0, 0, 0, 6, 0, 0, 0, 3},
-	{4, 0, 0, 8, 0, 3, 0, 0, 1},
-	{7, 0, 0, 0, 2, 0, 0, 0, 6},
-	{0, 6, 0, 0, 0, 0, 2, 8, 0},
-	{0, 0, 0, 4, 1, 9, 0, 0, 5},
-	{0, 0, 0, 0, 8, 0, 0, 0, 0},
-}
-
-func printSudoku() {
+func printSudoku(sudoku [][]int) {
 	fmt.Println()
 	for _, row := range sudoku {
 		for _, num := range row {
@@ -24,7 +12,21 @@ func printSudoku() {
 	}
 }
 
-func possible(y int, x int, n int) bool {
+//func printSamuraiSudoku(samurai [][]int) {
+//	fmt.Println()
+//	for _, row := range samurai {
+//		for _, num := range row {
+//			if num == -1 {
+//				fmt.Print("  ")
+//			} else {
+//				fmt.Print(num, " ")
+//			}
+//		}
+//		fmt.Println()
+//	}
+//}
+
+func possible(sudoku [][]int, y int, x int, n int) bool {
 	for i := 0; i < 9; i++ {
 		if sudoku[y][i] == n {
 			return false
@@ -48,32 +50,46 @@ func possible(y int, x int, n int) bool {
 	return true
 }
 
-func backtrack() {
+//func solveSudoku(bigSudoku [][]int) {
+//
+//}
+
+func backtrack(sudoku [][]int) bool {
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
-					if possible(y, x, n) {
+					if possible(sudoku, y, x, n) {
 						sudoku[y][x] = n
-						backtrack()
+						if backtrack(sudoku) {
+							return true
+						}
 						sudoku[y][x] = 0
 					}
 				}
-				return
+				return false
 			}
 		}
 	}
 	fmt.Println("Solved!")
-	printSudoku()
-	_, err := fmt.Scanf("%v")
-	if err != nil {
-		return
-	}
+	printSudoku(sudoku)
+	return true
 }
 
 func main() {
-	printSudoku()
-	backtrack()
+	var sudoku = [][]int{
+		{5, 3, 0, 0, 7, 0, 0, 0, 0},
+		{6, 0, 0, 1, 9, 5, 0, 0, 0},
+		{0, 9, 8, 0, 0, 0, 0, 6, 0},
+		{8, 0, 0, 0, 6, 0, 0, 0, 3},
+		{4, 0, 0, 8, 0, 3, 0, 0, 1},
+		{7, 0, 0, 0, 2, 0, 0, 0, 6},
+		{0, 6, 0, 0, 0, 0, 2, 8, 0},
+		{0, 0, 0, 4, 1, 9, 0, 0, 5},
+		{0, 0, 0, 0, 8, 0, 0, 0, 0},
+	}
+	printSudoku(sudoku)
+	backtrack(sudoku)
 	//printSudoku()
 }
