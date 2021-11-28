@@ -54,7 +54,7 @@ func (m Matrix) String() string {
 	for _, row := range m {
 		for _, num := range row {
 			if num == -1 {
-				char = ""
+				char = " "
 			} else {
 				char = strconv.Itoa(num)
 			}
@@ -74,37 +74,61 @@ func (m Matrix) String() string {
 //GetSubSudoku returns sub-sudoku for given position, assuming 21*21 samurai sudoku grid
 func (s *SamuraiSudoku) GetSubSudoku(position Position) Matrix {
 	var grid = s.grid
-	var subSudoku Matrix
+	subSudoku := make(Matrix, 9)
+	var tmp Matrix
 	switch position {
 	case TopLeft:
-		subSudoku = grid[0:9]
-		for i := range subSudoku {
-			subSudoku[i] = subSudoku[i][0:9]
+		tmp = grid[0:9]
+		for i := range tmp {
+			subSudoku[i] = tmp[i][0:9]
 		}
 	case TopRight:
-		subSudoku = grid[0:9]
-		for i := range subSudoku {
-			subSudoku[i] = subSudoku[i][12:21]
+		tmp = grid[0:9]
+		for i := range tmp {
+			subSudoku[i] = tmp[i][12:21]
 		}
 	case Centre:
-		subSudoku = grid[6:15]
-		for i := range subSudoku {
-			subSudoku[i] = subSudoku[i][6:15]
+		tmp = grid[6:15]
+		for i := range tmp {
+			subSudoku[i] = tmp[i][6:15]
 		}
 
 	case BottomLeft:
-		subSudoku = grid[12:21]
-		for i := range subSudoku {
-			subSudoku[i] = subSudoku[i][0:9]
+		tmp = grid[12:21]
+		for i := range tmp {
+			subSudoku[i] = tmp[i][0:9]
 		}
 
 	case BottomRight:
-		subSudoku = grid[12:21]
-		for i := range subSudoku {
-			subSudoku[i] = subSudoku[i][12:21]
+		tmp = grid[12:21]
+		for i := range tmp {
+			subSudoku[i] = tmp[i][12:21]
 		}
 	}
 	return subSudoku
+}
+
+func SolveSamuraiSudoku(samurai *SamuraiSudoku) Matrix {
+	// get all subsudokus
+	subSudokus := []Matrix{
+		samurai.GetSubSudoku(TopLeft),
+		samurai.GetSubSudoku(TopRight),
+		samurai.GetSubSudoku(Centre),
+		samurai.GetSubSudoku(BottomLeft),
+		samurai.GetSubSudoku(BottomRight),
+	}
+
+	// iterate over the slice until everything is solved
+	solutions := make([]Matrix, 5)
+	// TODO: check possible for all shared sudokus
+	for _, sudoku := range subSudokus {
+		solutions = append(solutions, SolveSudoku(sudoku))
+	}
+
+	for _, solution := range solutions {
+		fmt.Println(solution)
+	}
+	return samurai.Grid()
 }
 
 func possible(sudoku Matrix, y int, x int, n int) bool {
