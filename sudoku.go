@@ -160,8 +160,8 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 
 	// iterate over the map until all subsudokus are solved
 	for _, subSudoku := range subSudokus {
-		solution := SolveSudoku(subSudoku.sudoku, subSudoku.position, samurai)
-		logger.Printf("%s\n%v\n", subSudoku.position, solution)
+		SolveSudoku(subSudoku.sudoku, subSudoku.position, samurai)
+		//logger.Printf("%s\n%v\n", subSudoku.position, solution)
 	}
 
 	return samurai.Grid()
@@ -341,6 +341,7 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
 						sudoku[y][x] = n
+						logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
 						if backtrack(sudoku, position, samuraiSudoku) {
 							return true
 						}

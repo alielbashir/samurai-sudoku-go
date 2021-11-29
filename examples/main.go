@@ -36,7 +36,7 @@ func main() {
 
 	fmt.Println(samuraiSudoku.Grid())
 
-	SolveSamuraiSudoku(&samuraiSudoku)
+	ConcurrentSolveSamuraiSudoku(&samuraiSudoku)
 
 	fmt.Println(samuraiSudoku.Grid())
 }
