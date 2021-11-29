@@ -42,16 +42,18 @@ type Move struct {
 
 func (m Move) String() string {
 	buf := bytes.Buffer{}
-	fmt.Fprintf(&buf, "%d,%d, %s,%d,%d,%d", m.time, m.thread, m.position, m.row, m.column, m.num)
+	fmt.Fprintf(&buf, "%d,%d,%s,%d,%d,%d", m.time, m.thread, m.position, m.row, m.column, m.num)
 	return buf.String()
 }
 
 type Tracker struct {
-	moves []Move
+	moves     []Move
+	startTime int64
 }
 
 func (t *Tracker) resetMoves() {
 	t.moves = nil
+	t.startTime = time.Now().UnixMicro()
 }
 
 //SamuraiGridFromFile reads a samurai sudoku grid from a given file
@@ -228,12 +230,12 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Grid {
 
 func (s *SamuraiSudoku) recordMove(id ThreadId, position Position, y int, x int, n int) {
 	s.tracker.moves = append(s.tracker.moves, Move{
-		thread:   int(position) * int(id),
+		thread:   int(position)*10 + int(id),
 		position: position,
 		row:      y,
 		column:   x,
 		num:      n,
-		time:     time.Now().UnixMicro(),
+		time:     time.Now().UnixMicro() - s.tracker.startTime,
 	})
 }
 
@@ -350,7 +352,7 @@ func DoubleThreadSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 	}
 
 	moves := samurai.moves()
-	os.WriteFile("sudoku.log", moves.Bytes(), 0666)
+	os.WriteFile("sudoku.csv", moves.Bytes(), 0666)
 	logger.Printf("attempt %d\n%v\n", SolvingAttempts, samurai.Grid())
 
 	return samurai.Grid()
@@ -385,8 +387,8 @@ func doubleSolvingLoop(samurai *SamuraiSudoku, subSudokus []struct {
 	wg.Add(len(subSudokus) * 2)
 	for _, subSudoku := range subSudokus {
 		// increment WaitGroup counter
-		go concurrentSolveSudoku(Thread1, subSudoku.sudoku, subSudoku.position, samurai, wg)
 		go concurrentSolveSudoku(Thread2, subSudoku.sudoku, subSudoku.position, samurai, wg)
+		go concurrentSolveSudoku(Thread1, subSudoku.sudoku, subSudoku.position, samurai, wg)
 	}
 	wg.Wait()
 	var order bytes.Buffer
@@ -481,8 +483,11 @@ func concurrentSolveSudoku(threadId ThreadId, sudoku Grid, position Position, sa
 		wg.Done()
 		return sudoku
 	}
-
-	backtrack(threadId, sudoku, position, samuraiSudoku)
+	if threadId == Thread1 {
+		reverseBacktrack(threadId, sudoku, position, samuraiSudoku)
+	} else {
+		backtrack(threadId, sudoku, position, samuraiSudoku)
+	}
 
 	wg.Done()
 
@@ -511,6 +516,46 @@ func backtrack(threadId ThreadId, sudoku Grid, position Position, samuraiSudoku 
 						samuraiSudoku.mu.Unlock()
 						//logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
 						if backtrack(threadId, sudoku, position, samuraiSudoku) {
+							// should be unlocked here, but could get locked by other threads
+							return true
+						}
+						//logger.Printf("%s: waiting for lock for 0", position)
+						samuraiSudoku.mu.Lock()
+						//logger.Printf("%s: acquired lock for 0", position)
+						samuraiSudoku.recordMove(threadId, position, y, x, 0)
+						sudoku[y][x] = 0
+						//logger.Printf("%s: releasing lock after 0", position)
+						//samuraiSudoku.mu.Unlock()
+					}
+				}
+				//logger.Printf("%s: returning false, %d %d", position, y, x)
+				samuraiSudoku.mu.Unlock()
+				return false
+			}
+			//logger.Printf("%s: released lock, %d, %d", position, y, x)
+			samuraiSudoku.mu.Unlock()
+		}
+	}
+	//samuraiSudoku.mu.Unlock()
+	return true
+}
+
+//reverseBacktrack keeps attempting values recursively until 9x9 sudoku is solved completely from the bottom
+func reverseBacktrack(threadId ThreadId, sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) bool {
+	for y := 8; y >= 0; y-- {
+		for x := 8; x >= 0; x-- {
+			// if cell is empty
+			//logger.Printf("%s: waiting for lock...", position)
+			samuraiSudoku.mu.Lock()
+			//logger.Printf("%s: locked", position)
+			if sudoku[y][x] == 0 {
+				for n := 1; n < 10; n++ {
+					if possible(sudoku, y, x, n, position, samuraiSudoku) {
+						samuraiSudoku.recordMove(threadId, position, y, x, n)
+						sudoku[y][x] = n
+						samuraiSudoku.mu.Unlock()
+						//logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
+						if reverseBacktrack(threadId, sudoku, position, samuraiSudoku) {
 							// should be unlocked here, but could get locked by other threads
 							return true
 						}
