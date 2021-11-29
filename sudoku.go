@@ -32,10 +32,18 @@ func (g Grid) isSolved() bool {
 
 // Move A single move in sudoku
 type Move struct {
+	thread   int
 	position Position // Position of the sudoku this Move was done in
 	row      int
 	column   int
 	num      int // Number inserted
+	time     int64
+}
+
+func (m Move) String() string {
+	buf := bytes.Buffer{}
+	fmt.Fprintf(&buf, "%d,%d, %s,%d,%d,%d", m.time, m.thread, m.position, m.row, m.column, m.num)
+	return buf.String()
 }
 
 type Tracker struct {
@@ -128,11 +136,18 @@ func (s *SamuraiSudoku) SetGrid(grid Grid) {
 type Position int
 
 const (
-	TopLeft Position = iota
+	TopLeft Position = iota + 1
 	TopRight
 	Centre
 	BottomLeft
 	BottomRight
+)
+
+type ThreadId int
+
+const (
+	Thread1 ThreadId = iota + 1
+	Thread2
 )
 
 func (p Position) String() string {
@@ -211,19 +226,21 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Grid {
 	return subSudoku
 }
 
-func (s *SamuraiSudoku) recordMove(position Position, y int, x int, n int) {
+func (s *SamuraiSudoku) recordMove(id ThreadId, position Position, y int, x int, n int) {
 	s.tracker.moves = append(s.tracker.moves, Move{
+		thread:   int(position) * int(id),
 		position: position,
 		row:      y,
 		column:   x,
 		num:      n,
+		time:     time.Now().UnixMicro(),
 	})
 }
 
 func (s *SamuraiSudoku) moves() bytes.Buffer {
 	buf := bytes.Buffer{}
-	for i, move := range s.tracker.moves {
-		fmt.Fprintf(&buf, "%d,%s,%d,%d,%d\n", i, move.position, move.row, move.column, move.num)
+	for _, move := range s.tracker.moves {
+		fmt.Fprintf(&buf, "%s\n", move.String())
 	}
 	return buf
 }
@@ -285,12 +302,56 @@ func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 		// reset samurai grid
 		samurai.mu.Unlock()
 		solvingLoop(samurai, subSudokus, wg)
-		logger.Printf("attempt %d\n%v\n", SolvingAttempts, samurai.Grid())
 		SolvingAttempts++
 	}
 
 	moves := samurai.moves()
 	os.WriteFile("sudoku.log", moves.Bytes(), 0666)
+	logger.Printf("attempt %d\n%v\n", SolvingAttempts, samurai.Grid())
+
+	return samurai.Grid()
+}
+
+//DoubleThreadSolveSamuraiSudoku solves 21*21 samurai sudoku concurrently
+func DoubleThreadSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
+	rand.Seed(time.Now().UnixNano())
+	// get all subsudokus
+	getSubSudokus := func() []struct {
+		position Position
+		sudoku   Grid
+	} {
+		subSudokus := []struct {
+			position Position
+			sudoku   Grid
+		}{
+			{TopLeft, samurai.GetSubSudoku(TopLeft)},
+			{TopRight, samurai.GetSubSudoku(TopRight)},
+			{Centre, samurai.GetSubSudoku(Centre)},
+			{BottomLeft, samurai.GetSubSudoku(BottomLeft)},
+			{BottomRight, samurai.GetSubSudoku(BottomRight)},
+		}
+		rand.Shuffle(len(subSudokus), func(i, j int) {
+			subSudokus[i], subSudokus[j] = subSudokus[j], subSudokus[i]
+		})
+		return subSudokus
+	}
+
+	wg := new(sync.WaitGroup)
+
+	// iterate over the map until all subsudokus are solved
+	for !samurai.Grid().isSolved() {
+		samurai.mu.Lock()
+		samurai.ResetGrid()
+		subSudokus := getSubSudokus()
+		// reset samurai grid
+		samurai.mu.Unlock()
+		doubleSolvingLoop(samurai, subSudokus, wg)
+		SolvingAttempts++
+	}
+
+	moves := samurai.moves()
+	os.WriteFile("sudoku.log", moves.Bytes(), 0666)
+	logger.Printf("attempt %d\n%v\n", SolvingAttempts, samurai.Grid())
 
 	return samurai.Grid()
 }
@@ -304,7 +365,28 @@ func solvingLoop(samurai *SamuraiSudoku, subSudokus []struct {
 	wg.Add(len(subSudokus))
 	for _, subSudoku := range subSudokus {
 		// increment WaitGroup counter
-		go concurrentSolveSudoku(subSudoku.sudoku, subSudoku.position, samurai, wg)
+		go concurrentSolveSudoku(Thread1, subSudoku.sudoku, subSudoku.position, samurai, wg)
+	}
+	wg.Wait()
+	var order bytes.Buffer
+	// populate order buffer for debugging purposes
+	for _, sudokus := range subSudokus {
+		_, err := fmt.Fprintf(&order, "%d, ", sudokus.position)
+		if err != nil {
+			return
+		}
+	}
+}
+
+func doubleSolvingLoop(samurai *SamuraiSudoku, subSudokus []struct {
+	position Position
+	sudoku   Grid
+}, wg *sync.WaitGroup) {
+	wg.Add(len(subSudokus) * 2)
+	for _, subSudoku := range subSudokus {
+		// increment WaitGroup counter
+		go concurrentSolveSudoku(Thread1, subSudoku.sudoku, subSudoku.position, samurai, wg)
+		go concurrentSolveSudoku(Thread2, subSudoku.sudoku, subSudoku.position, samurai, wg)
 	}
 	wg.Wait()
 	var order bytes.Buffer
@@ -393,14 +475,14 @@ func possibleSudoku(sudoku Grid, y int, x int, n int) bool {
 }
 
 //concurrentSolveSudoku solves 9x9 subsudoku in specified position within samuraiSudoku, concurrently
-func concurrentSolveSudoku(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku, wg *sync.WaitGroup) Grid {
+func concurrentSolveSudoku(threadId ThreadId, sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku, wg *sync.WaitGroup) Grid {
 	// TODO: fix some sudokus not solving.
 	if sudoku.isSolved() {
 		wg.Done()
 		return sudoku
 	}
 
-	backtrack(sudoku, position, samuraiSudoku)
+	backtrack(threadId, sudoku, position, samuraiSudoku)
 
 	wg.Done()
 
@@ -409,12 +491,12 @@ func concurrentSolveSudoku(sudoku Grid, position Position, samuraiSudoku *Samura
 
 //SolveSudoku solves 9x9 subsudoku in position within samuraiSudoku
 func SolveSudoku(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) Grid {
-	backtrack(sudoku, position, samuraiSudoku)
+	backtrack(Thread1, sudoku, position, samuraiSudoku)
 	return sudoku
 }
 
 //backtrack keeps attempting values recursively until 9x9 sudoku is solved completely
-func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) bool {
+func backtrack(threadId ThreadId, sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) bool {
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty
@@ -424,18 +506,18 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
-						samuraiSudoku.recordMove(position, y, x, n)
+						samuraiSudoku.recordMove(threadId, position, y, x, n)
 						sudoku[y][x] = n
 						samuraiSudoku.mu.Unlock()
 						//logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
-						if backtrack(sudoku, position, samuraiSudoku) {
+						if backtrack(threadId, sudoku, position, samuraiSudoku) {
 							// should be unlocked here, but could get locked by other threads
 							return true
 						}
 						//logger.Printf("%s: waiting for lock for 0", position)
 						samuraiSudoku.mu.Lock()
 						//logger.Printf("%s: acquired lock for 0", position)
-						samuraiSudoku.recordMove(position, y, x, 0)
+						samuraiSudoku.recordMove(threadId, position, y, x, 0)
 						sudoku[y][x] = 0
 						//logger.Printf("%s: releasing lock after 0", position)
 						//samuraiSudoku.mu.Unlock()
