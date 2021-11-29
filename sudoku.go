@@ -194,10 +194,14 @@ func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 
 	// iterate over the map until all subsudokus are solved
 	for !samurai.Grid().isSolved() {
+		samurai.mu.Lock()
 		samurai.ResetGrid()
 		subSudokus := getSubSudokus()
 		// reset samurai grid
+		samurai.mu.Unlock()
 		solvingLoop(samurai, subSudokus, wg)
+		logger.Printf("attempt %d\n%v\n", SolvingAttempts, samurai.Grid())
+		SolvingAttempts++
 	}
 
 	fmt.Println(samurai.Grid())
@@ -328,32 +332,32 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty
-			logger.Printf("%s: waiting for lock...", position)
+			//logger.Printf("%s: waiting for lock...", position)
 			samuraiSudoku.mu.Lock()
-			logger.Printf("%s: locked", position)
+			//logger.Printf("%s: locked", position)
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
 						sudoku[y][x] = n
 						samuraiSudoku.mu.Unlock()
-						logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
+						//logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
 						if backtrack(sudoku, position, samuraiSudoku) {
 							// should be unlocked here, but could get locked by other threads
 							return true
 						}
-						logger.Printf("%s: waiting for lock for 0", position)
+						//logger.Printf("%s: waiting for lock for 0", position)
 						samuraiSudoku.mu.Lock()
-						logger.Printf("%s: acquired lock for 0", position)
+						//logger.Printf("%s: acquired lock for 0", position)
 						sudoku[y][x] = 0
 						//logger.Printf("%s: releasing lock after 0", position)
 						//samuraiSudoku.mu.Unlock()
 					}
 				}
-				logger.Printf("%s: returning false, %d %d", position, y, x)
+				//logger.Printf("%s: returning false, %d %d", position, y, x)
 				samuraiSudoku.mu.Unlock()
 				return false
 			}
-			logger.Printf("%s: released lock", position)
+			//logger.Printf("%s: released lock, %d, %d", position, y, x)
 			samuraiSudoku.mu.Unlock()
 		}
 	}
