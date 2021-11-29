@@ -161,7 +161,6 @@ func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 	// iterate over the map until all subsudokus are solved
 	for _, subSudoku := range subSudokus {
 		SolveSudoku(subSudoku.sudoku, subSudoku.position, samurai)
-		//logger.Printf("%s\n%v\n", subSudoku.position, solution)
 	}
 
 	return samurai.Grid()
@@ -201,6 +200,8 @@ func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 		solvingLoop(samurai, subSudokus, wg)
 	}
 
+	fmt.Println(samurai.Grid())
+
 	return samurai.Grid()
 }
 
@@ -224,10 +225,6 @@ func solvingLoop(samurai *SamuraiSudoku, subSudokus []struct {
 			return
 		}
 	}
-	logger.Printf("Attempt %d:\n"+
-		"order = %v\n"+
-		"%s\n", SolvingAttempts, order.String(), samurai.Grid())
-	SolvingAttempts++
 }
 
 //possible checks if index y,x in grid position can be filled with n in all subsudokus it's in
@@ -312,15 +309,11 @@ func concurrentSolveSudoku(sudoku Grid, position Position, samuraiSudoku *Samura
 		wg.Done()
 		return sudoku
 	}
-	logger.Printf("%s attempting solve on \n%v\n", position, sudoku)
 
 	samuraiSudoku.mu.Lock()
-	//logger.Printf("%s routine acquired lock\n", position)
 	backtrack(sudoku, position, samuraiSudoku)
 	samuraiSudoku.mu.Unlock()
-	//logger.Printf("%s routine released lock\n", position)
 
-	//logger.Printf("%s\n%v\n", position, sudoku)
 	wg.Done()
 
 	return sudoku
@@ -341,7 +334,6 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
 						sudoku[y][x] = n
-						logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
 						if backtrack(sudoku, position, samuraiSudoku) {
 							return true
 						}
