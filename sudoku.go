@@ -3,10 +3,12 @@ package sudoku
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -26,6 +28,54 @@ func (g Grid) isSolved() bool {
 		}
 	}
 	return true
+}
+
+//SamuraiGridFromFile reads a samurai sudoku grid from a given file
+func SamuraiGridFromFile(filePath string) Grid {
+	const samuraiLength = 21
+	grid := make(Grid, samuraiLength)
+
+	buffer, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Printf("File couldn't be read!")
+	}
+
+	sudokuContents := string(buffer)
+
+	for j, line := range strings.Split(sudokuContents, "\n") {
+		charRow := strings.Split(line, "")
+		intRow := make([]int, samuraiLength, samuraiLength)
+		offset := 0
+		for i := 0; i < samuraiLength; i++ {
+			switch len(charRow) {
+			case 9:
+				if i < 6 || 15 <= i {
+					intRow[i] = -1
+					offset++
+				} else {
+					num, _ := strconv.Atoi(charRow[i-offset])
+
+					intRow[i] = num
+				}
+			case 18:
+				if 9 <= i && i < 12 {
+					intRow[i] = -1
+					offset++
+				} else {
+					num, _ := strconv.Atoi(charRow[i-offset])
+					intRow[i] = num
+				}
+
+			default:
+				num, _ := strconv.Atoi(charRow[i-offset])
+				intRow[i] = num
+			}
+		}
+
+		grid[j] = intRow
+	}
+	logger.Printf("Read \n%v\n", grid)
+	return grid
 }
 
 type SamuraiSudoku struct {
@@ -198,8 +248,9 @@ func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 		subSudokus := getSubSudokus()
 		// reset samurai grid
 		solvingLoop(samurai, subSudokus, wg)
+		SolvingAttempts++
 	}
-
+	fmt.Println("deneme:", SolvingAttempts)
 	fmt.Println(samurai.Grid())
 
 	return samurai.Grid()
