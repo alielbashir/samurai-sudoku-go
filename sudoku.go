@@ -3,6 +3,7 @@ package sudoku
 import (
 	"bytes"
 	"fmt"
+	"github.com/wcharczuk/go-chart/v2"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -37,23 +38,23 @@ type Move struct {
 	row      int
 	column   int
 	num      int // Number inserted
-	time     int64
+	time     time.Time
 }
 
 func (m Move) String() string {
 	buf := bytes.Buffer{}
-	fmt.Fprintf(&buf, "%d,%d,%s,%d,%d,%d", m.time, m.thread, m.position, m.row, m.column, m.num)
+	fmt.Fprintf(&buf, "%d,%d,%s,%d,%d,%d", m.time.UnixMicro(), m.thread, m.position, m.row, m.column, m.num)
 	return buf.String()
 }
 
 type Tracker struct {
 	moves     []Move
-	startTime int64
+	startTime time.Time
 }
 
 func (t *Tracker) resetMoves() {
 	t.moves = nil
-	t.startTime = time.Now().UnixMicro()
+	t.startTime = time.Now()
 }
 
 //SamuraiGridFromFile reads a samurai sudoku grid from a given file
@@ -235,12 +236,13 @@ func (s *SamuraiSudoku) recordMove(id ThreadId, position Position, y int, x int,
 		row:      y,
 		column:   x,
 		num:      n,
-		time:     time.Now().UnixMicro() - s.tracker.startTime,
+		time:     time.Now().Add(time.Now().Sub(s.tracker.startTime)),
 	})
 }
 
 func (s *SamuraiSudoku) moves() bytes.Buffer {
 	buf := bytes.Buffer{}
+	fmt.Fprintf(&buf, "time (microseconds),thread id, position, row, colmun, value\n")
 	for _, move := range s.tracker.moves {
 		fmt.Fprintf(&buf, "%s\n", move.String())
 	}
@@ -578,4 +580,72 @@ func reverseBacktrack(threadId ThreadId, sudoku Grid, position Position, samurai
 	}
 	//samuraiSudoku.mu.Unlock()
 	return true
+}
+
+func WriteGraph(samurai *SamuraiSudoku) {
+	stats := samurai.tracker.moves
+
+	var xValues []float64
+	var yValues []float64
+	startingTime := samurai.tracker.moves[0].time
+
+	for i, stat := range stats {
+		xValues = append(xValues, float64(stat.time.Sub(startingTime).Nanoseconds()))
+		yValues = append(yValues, float64(i))
+	}
+
+	timeGraph := chart.Chart{
+		Title: "Time (ms) and number of moves",
+		XAxis: chart.XAxis{
+			ValueFormatter: func(v interface{}) string {
+				return strconv.FormatInt(int64(v.(float64)/1000000), 10)
+			},
+		},
+		Series: []chart.Series{
+			chart.ContinuousSeries{
+				XValues: xValues,
+				YValues: yValues,
+			},
+		},
+	}
+
+	f, _ := os.Create("output.png")
+	defer f.Close()
+	timeGraph.Render(chart.PNG, f)
+
+}
+
+func WriteMultiThreadedGraph(samurai *SamuraiSudoku) {
+	stats := samurai.tracker.moves
+
+	var xValues []float64
+	var yValues []float64
+
+	startingTime := samurai.tracker.moves[0].time
+
+	for i, stat := range stats {
+
+		xValues = append(xValues, float64(stat.time.Sub(startingTime).Nanoseconds()))
+		yValues = append(yValues, float64(i))
+
+	}
+
+	timeGraph := chart.Chart{
+		Title: "Time (ms) and number of moves",
+		XAxis: chart.XAxis{
+			ValueFormatter: func(v interface{}) string {
+				return strconv.FormatInt(int64(v.(float64)/1000000), 10)
+			},
+		},
+		Series: []chart.Series{
+			chart.ContinuousSeries{
+				XValues: xValues,
+				YValues: yValues,
+			},
+		},
+	}
+
+	f, _ := os.Create("output.png")
+	defer f.Close()
+	timeGraph.Render(chart.PNG, f)
 }

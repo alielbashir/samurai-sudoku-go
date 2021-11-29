@@ -12,5 +12,6 @@ func main() {
 	samuraiSudoku.SetGrid(samuraiGrid)
 
 	DoubleThreadSolveSamuraiSudoku(&samuraiSudoku)
+	WriteGraph(&samuraiSudoku)
 
 }
