@@ -3,10 +3,12 @@ package sudoku
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,13 +30,79 @@ func (g Grid) isSolved() bool {
 	return true
 }
 
+// Move A single move in sudoku
+type Move struct {
+	position Position // Position of the sudoku this Move was done in
+	row      int
+	column   int
+	num      int // Number inserted
+}
+
+type Tracker struct {
+	moves []Move
+}
+
+func (t *Tracker) resetMoves() {
+	t.moves = nil
+}
+
+//SamuraiGridFromFile reads a samurai sudoku grid from a given file
+func SamuraiGridFromFile(filePath string) Grid {
+	const samuraiLength = 21
+	grid := make(Grid, samuraiLength)
+
+	buffer, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Printf("File couldn't be read!")
+	}
+
+	sudokuContents := string(buffer)
+
+	for j, line := range strings.Split(sudokuContents, "\n") {
+		charRow := strings.Split(line, "")
+		intRow := make([]int, samuraiLength, samuraiLength)
+		offset := 0
+		for i := 0; i < samuraiLength; i++ {
+			switch len(charRow) {
+			case 9:
+				if i < 6 || 15 <= i {
+					intRow[i] = -1
+					offset++
+				} else {
+					num, _ := strconv.Atoi(charRow[i-offset])
+
+					intRow[i] = num
+				}
+			case 18:
+				if 9 <= i && i < 12 {
+					intRow[i] = -1
+					offset++
+				} else {
+					num, _ := strconv.Atoi(charRow[i-offset])
+					intRow[i] = num
+				}
+
+			default:
+				num, _ := strconv.Atoi(charRow[i-offset])
+				intRow[i] = num
+			}
+		}
+
+		grid[j] = intRow
+	}
+	logger.Printf("Read \n%v\n", grid)
+	return grid
+}
+
 type SamuraiSudoku struct {
 	mu          sync.Mutex
 	grid        Grid
 	initialGrid Grid
+	tracker     Tracker
 }
 
 func (s *SamuraiSudoku) ResetGrid() {
+	s.tracker.resetMoves()
 	for i, row := range s.initialGrid {
 		for j, num := range row {
 			s.grid[i][j] = num
@@ -143,6 +211,23 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Grid {
 	return subSudoku
 }
 
+func (s *SamuraiSudoku) recordMove(position Position, y int, x int, n int) {
+	s.tracker.moves = append(s.tracker.moves, Move{
+		position: position,
+		row:      y,
+		column:   x,
+		num:      n,
+	})
+}
+
+func (s *SamuraiSudoku) moves() bytes.Buffer {
+	buf := bytes.Buffer{}
+	for i, move := range s.tracker.moves {
+		fmt.Fprintf(&buf, "%d,%s,%d,%d,%d\n", i, move.position, move.row, move.column, move.num)
+	}
+	return buf
+}
+
 //SolveSamuraiSudoku solves 21*21 samurai sudoku
 func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 
@@ -204,7 +289,8 @@ func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 		SolvingAttempts++
 	}
 
-	fmt.Println(samurai.Grid())
+	moves := samurai.moves()
+	os.WriteFile("sudoku.log", moves.Bytes(), 0666)
 
 	return samurai.Grid()
 }
@@ -338,6 +424,7 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
+						samuraiSudoku.recordMove(position, y, x, n)
 						sudoku[y][x] = n
 						samuraiSudoku.mu.Unlock()
 						//logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
@@ -348,6 +435,7 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 						//logger.Printf("%s: waiting for lock for 0", position)
 						samuraiSudoku.mu.Lock()
 						//logger.Printf("%s: acquired lock for 0", position)
+						samuraiSudoku.recordMove(position, y, x, 0)
 						sudoku[y][x] = 0
 						//logger.Printf("%s: releasing lock after 0", position)
 						//samuraiSudoku.mu.Unlock()
