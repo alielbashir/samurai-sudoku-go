@@ -340,20 +340,21 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 						if backtrack(sudoku, position, samuraiSudoku) {
 							// should be unlocked here, but could get locked by other threads
 							return true
-						} else {
-							samuraiSudoku.mu.Lock()
-							sudoku[y][x] = 0
-							logger.Printf("%s: releasing lock after 0", position)
-							samuraiSudoku.mu.Unlock()
 						}
+						logger.Printf("%s: waiting for lock for 0", position)
+						samuraiSudoku.mu.Lock()
+						logger.Printf("%s: acquired lock for 0", position)
+						sudoku[y][x] = 0
+						//logger.Printf("%s: releasing lock after 0", position)
+						//samuraiSudoku.mu.Unlock()
 					}
 				}
 				logger.Printf("%s: returning false, %d %d", position, y, x)
 				samuraiSudoku.mu.Unlock()
 				return false
 			}
-			//logger.Printf("%s: released lock", position)
-			//samuraiSudoku.mu.Unlock()
+			logger.Printf("%s: released lock", position)
+			samuraiSudoku.mu.Unlock()
 		}
 	}
 	//samuraiSudoku.mu.Unlock()
