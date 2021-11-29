@@ -30,6 +30,22 @@ func (g Grid) isSolved() bool {
 	return true
 }
 
+// Move A single move in sudoku
+type Move struct {
+	position Position // Position of the sudoku this Move was done in
+	row      int
+	column   int
+	num      int // Number inserted
+}
+
+type Tracker struct {
+	moves []Move
+}
+
+func (t *Tracker) resetMoves() {
+	t.moves = nil
+}
+
 //SamuraiGridFromFile reads a samurai sudoku grid from a given file
 func SamuraiGridFromFile(filePath string) Grid {
 	const samuraiLength = 21
@@ -82,9 +98,11 @@ type SamuraiSudoku struct {
 	mu          sync.Mutex
 	grid        Grid
 	initialGrid Grid
+	tracker     Tracker
 }
 
 func (s *SamuraiSudoku) ResetGrid() {
+	s.tracker.resetMoves()
 	for i, row := range s.initialGrid {
 		for j, num := range row {
 			s.grid[i][j] = num
@@ -193,6 +211,23 @@ func (s *SamuraiSudoku) GetSubSudoku(position Position) Grid {
 	return subSudoku
 }
 
+func (s *SamuraiSudoku) recordMove(position Position, y int, x int, n int) {
+	s.tracker.moves = append(s.tracker.moves, Move{
+		position: position,
+		row:      y,
+		column:   x,
+		num:      n,
+	})
+}
+
+func (s *SamuraiSudoku) moves() bytes.Buffer {
+	buf := bytes.Buffer{}
+	for i, move := range s.tracker.moves {
+		fmt.Fprintf(&buf, "%d,%s,%d,%d,%d\n", i, move.position, move.row, move.column, move.num)
+	}
+	return buf
+}
+
 //SolveSamuraiSudoku solves 21*21 samurai sudoku
 func SolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 
@@ -250,8 +285,9 @@ func ConcurrentSolveSamuraiSudoku(samurai *SamuraiSudoku) Grid {
 		solvingLoop(samurai, subSudokus, wg)
 		SolvingAttempts++
 	}
-	fmt.Println("deneme:", SolvingAttempts)
-	fmt.Println(samurai.Grid())
+
+	moves := samurai.moves()
+	os.WriteFile("sudoku.log", moves.Bytes(), 0666)
 
 	return samurai.Grid()
 }
@@ -384,10 +420,12 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
+						samuraiSudoku.recordMove(position, y, x, n)
 						sudoku[y][x] = n
 						if backtrack(sudoku, position, samuraiSudoku) {
 							return true
 						}
+						samuraiSudoku.recordMove(position, y, x, 0)
 						sudoku[y][x] = 0
 					}
 				}
