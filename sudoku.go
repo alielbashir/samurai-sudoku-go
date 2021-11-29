@@ -310,9 +310,7 @@ func concurrentSolveSudoku(sudoku Grid, position Position, samuraiSudoku *Samura
 		return sudoku
 	}
 
-	samuraiSudoku.mu.Lock()
 	backtrack(sudoku, position, samuraiSudoku)
-	samuraiSudoku.mu.Unlock()
 
 	wg.Done()
 
@@ -330,19 +328,34 @@ func backtrack(sudoku Grid, position Position, samuraiSudoku *SamuraiSudoku) boo
 	for y := 0; y < 9; y++ {
 		for x := 0; x < 9; x++ {
 			// if cell is empty
+			logger.Printf("%s: waiting for lock...", position)
+			samuraiSudoku.mu.Lock()
+			logger.Printf("%s: locked", position)
 			if sudoku[y][x] == 0 {
 				for n := 1; n < 10; n++ {
 					if possible(sudoku, y, x, n, position, samuraiSudoku) {
 						sudoku[y][x] = n
+						samuraiSudoku.mu.Unlock()
+						logger.Printf("%s: set sudoku[%d, %d] = %d", position, y, x, n)
 						if backtrack(sudoku, position, samuraiSudoku) {
+							// should be unlocked here, but could get locked by other threads
 							return true
+						} else {
+							samuraiSudoku.mu.Lock()
+							sudoku[y][x] = 0
+							logger.Printf("%s: releasing lock after 0", position)
+							samuraiSudoku.mu.Unlock()
 						}
-						sudoku[y][x] = 0
 					}
 				}
+				logger.Printf("%s: returning false, %d %d", position, y, x)
+				samuraiSudoku.mu.Unlock()
 				return false
 			}
+			//logger.Printf("%s: released lock", position)
+			//samuraiSudoku.mu.Unlock()
 		}
 	}
+	//samuraiSudoku.mu.Unlock()
 	return true
 }
